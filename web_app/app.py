@@ -1,12 +1,16 @@
 from __future__ import annotations
 
 import ast
+import logging
 import os
 import pickle
 from difflib import get_close_matches
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 import numpy as np
 import pandas as pd
@@ -99,6 +103,17 @@ def _stem(text: str) -> str:
     return ' '.join([stemmer.stem(word) for word in text.split()])
 
 
+def _get_raw_movies_with_genres() -> pd.DataFrame:
+    """Load raw movies data with genres for fallback recommendations."""
+    if not MOVIES_CSV_PATH.exists():
+        raise FileNotFoundError(f"Missing {MOVIES_CSV_PATH.name} in {DATA_DIR}")
+    
+    movies = pd.read_csv(MOVIES_CSV_PATH)
+    # Parse genres for matching
+    movies['genres'] = movies['genres'].apply(_convert)
+    return movies[['movie_id', 'title', 'genres']]
+
+
 def _load_pickle(path: Path) -> Any:
     with path.open("rb") as f:
         return pickle.load(f)
@@ -181,23 +196,22 @@ def get_movies() -> pd.DataFrame:
 def get_similarity() -> np.ndarray | None:
     """Try to load the full similarity matrix.
 
-    Note: This file can be large. If loading fails due to memory constraints,
-    we return None and fall back to on-the-fly similarity computation.
+    Note: This file can be large. If loading fails due to memory constraints
+    or corruption, we return None and fall back to on-the-fly similarity computation.
     """
 
     if not SIMILARITY_PATH.exists():
+        logger.warning(f"Similarity file not found at {SIMILARITY_PATH}, using on-the-fly computation")
         return None
 
     try:
         sim = _load_pickle(SIMILARITY_PATH)
+        logger.info("Successfully loaded similarity matrix from pickle file")
         return np.array(sim)
     except Exception as e:
-        # Some environments can't load a full NxN float64 similarity matrix.
-        # If we hit any memory-allocation failure, fall back to on-the-fly similarity.
-        name = e.__class__.__name__
-        if isinstance(e, MemoryError) or "MemoryError" in name:
-            return None
-        raise
+        # Catch all exceptions including pickle corruption, memory errors, etc.
+        logger.error(f"Failed to load similarity matrix: {e.__class__.__name__}: {e}. Using on-the-fly computation.")
+        return None
 
 
 @lru_cache(maxsize=1)
@@ -262,66 +276,141 @@ def fetch_poster(movie_id: int) -> str | None:
 
 
 def recommend(movie_title: str, top_n: int = 5) -> tuple[str, list[dict[str, Any]]]:
-    """Return (matched_title, recommendations) using the notebook's similarity logic."""
+    """Return (matched_title, recommendations) using the notebook's similarity logic.
+    
+    Falls back to genre-based recommendations if similarity computation fails.
+    """
 
-    movies = get_movies()
+    try:
+        logger.info(f"Recommendation request for: '{movie_title}'")
+        movies = get_movies()
 
-    title_clean = (movie_title or "").strip()
-    if not title_clean:
-        raise ValueError("Please enter a movie title.")
+        title_clean = (movie_title or "").strip()
+        if not title_clean:
+            raise ValueError("Please enter a movie title.")
 
-    # Case-insensitive exact match (same logic, more user-friendly)
-    titles_lower = movies["title"].astype(str).str.lower()
-    matches = movies.index[titles_lower == title_clean.lower()].tolist()
+        # Case-insensitive exact match (same logic, more user-friendly)
+        titles_lower = movies["title"].astype(str).str.lower()
+        matches = movies.index[titles_lower == title_clean.lower()].tolist()
 
-    if not matches:
-        candidates = movies["title"].astype(str).tolist()
-        suggestions = get_close_matches(title_clean, candidates, n=5, cutoff=0.6)
-        msg = "Movie not found."
-        if suggestions:
-            msg += f" Did you mean: {', '.join(suggestions)}?"
-        raise LookupError(msg)
+        if not matches:
+            candidates = movies["title"].astype(str).tolist()
+            suggestions = get_close_matches(title_clean, candidates, n=5, cutoff=0.6)
+            msg = "Movie not found."
+            if suggestions:
+                msg += f" Did you mean: {', '.join(suggestions)}?"
+            raise LookupError(msg)
 
-    movie_index = int(matches[0])
+        movie_index = int(matches[0])
+        logger.info(f"Found movie at index {movie_index}: {movies.iloc[movie_index]['title']}")
 
-    sim = get_similarity()
-    if sim is not None:
-        distances = sim[movie_index]
-    else:
-        # Fallback: compute similarity vector against all movies from sparse tag vectors
-        matrix = get_count_matrix()
-        distances = cosine_similarity(matrix[movie_index], matrix).ravel()
+        sim = get_similarity()
+        if sim is not None:
+            distances = sim[movie_index]
+            logger.info("Using pre-computed similarity matrix")
+        else:
+            # Fallback: compute similarity vector against all movies from sparse tag vectors
+            logger.info("Computing similarity on-the-fly from count matrix")
+            matrix = get_count_matrix()
+            distances = cosine_similarity(matrix[movie_index], matrix).ravel()
 
-    ranked = sorted(list(enumerate(distances)), key=lambda x: x[1], reverse=True)
-    top_indices = [i for i, _ in ranked[1 : top_n + 1]]
+        ranked = sorted(list(enumerate(distances)), key=lambda x: x[1], reverse=True)
+        top_indices = [i for i, _ in ranked[1 : top_n + 1]]
 
-    matched_title = str(movies.iloc[movie_index]["title"])
+        matched_title = str(movies.iloc[movie_index]["title"])
 
-    # Build objects for the frontend (title + poster + rating)
-    recs: list[dict[str, Any]] = []
-    rec_rows = movies.iloc[top_indices]
+        # Build objects for the frontend (title + poster + rating)
+        recs: list[dict[str, Any]] = []
+        rec_rows = movies.iloc[top_indices]
 
-    for _, row in rec_rows.iterrows():
-        title = str(row.get("title", ""))
-        movie_id = row.get("movie_id")
-        movie_id_int = int(movie_id) if movie_id is not None else None
+        for _, row in rec_rows.iterrows():
+            title = str(row.get("title", ""))
+            movie_id = row.get("movie_id")
+            movie_id_int = int(movie_id) if movie_id is not None else None
 
-        movie_details = (
-            fetch_movie_details(movie_id_int)
-            if movie_id_int is not None
-            else {"poster_url": None, "vote_average": None}
-        )
+            movie_details = (
+                fetch_movie_details(movie_id_int)
+                if movie_id_int is not None
+                else {"poster_url": None, "vote_average": None}
+            )
 
-        recs.append(
-            {
-                "title": title,
-                "movie_id": movie_id_int,
-                "poster_url": movie_details.get("poster_url"),
-                "vote_average": movie_details.get("vote_average"),
-            }
-        )
+            recs.append(
+                {
+                    "title": title,
+                    "movie_id": movie_id_int,
+                    "poster_url": movie_details.get("poster_url"),
+                    "vote_average": movie_details.get("vote_average"),
+                }
+            )
 
-    return matched_title, recs
+        logger.info(f"Successfully generated {len(recs)} recommendations")
+        return matched_title, recs
+
+    except Exception as e:
+        logger.error(f"Similarity-based recommendation failed: {e.__class__.__name__}: {e}")
+        logger.info("Attempting genre-based fallback recommendation")
+        
+        # Fallback: Genre-based recommendations
+        try:
+            raw_movies = _get_raw_movies_with_genres()
+            
+            title_clean = (movie_title or "").strip()
+            titles_lower = raw_movies["title"].astype(str).str.lower()
+            matches = raw_movies.index[titles_lower == title_clean.lower()].tolist()
+            
+            if not matches:
+                raise LookupError(f"Movie '{movie_title}' not found in database")
+            
+            movie_index = int(matches[0])
+            movie_genres = set(raw_movies.iloc[movie_index]["genres"])
+            
+            # Calculate genre overlap scores
+            scores = []
+            for idx, row in raw_movies.iterrows():
+                if idx == movie_index:
+                    continue
+                row_genres = set(row["genres"])
+                # Jaccard similarity for genres
+                if movie_genres and row_genres:
+                    overlap = len(movie_genres & row_genres) / len(movie_genres | row_genres)
+                else:
+                    overlap = 0.0
+                scores.append((idx, overlap))
+            
+            # Sort by genre overlap and get top recommendations
+            ranked = sorted(scores, key=lambda x: x[1], reverse=True)
+            top_indices = [i for i, _ in ranked[:top_n]]
+            
+            matched_title = str(raw_movies.iloc[movie_index]["title"])
+            
+            recs: list[dict[str, Any]] = []
+            for idx in top_indices:
+                row = raw_movies.iloc[idx]
+                title = str(row.get("title", ""))
+                movie_id = row.get("movie_id")
+                movie_id_int = int(movie_id) if movie_id is not None else None
+                
+                movie_details = (
+                    fetch_movie_details(movie_id_int)
+                    if movie_id_int is not None
+                    else {"poster_url": None, "vote_average": None}
+                )
+                
+                recs.append(
+                    {
+                        "title": title,
+                        "movie_id": movie_id_int,
+                        "poster_url": movie_details.get("poster_url"),
+                        "vote_average": movie_details.get("vote_average"),
+                    }
+                )
+            
+            logger.info(f"Genre-based fallback generated {len(recs)} recommendations")
+            return matched_title, recs
+            
+        except Exception as fallback_error:
+            logger.error(f"Genre-based fallback also failed: {fallback_error.__class__.__name__}: {fallback_error}")
+            raise
 
 
 @lru_cache(maxsize=1)
@@ -391,11 +480,15 @@ def recommend_route():
         title = request.form.get("title")
 
     try:
+        logger.info(f"POST /recommend request with title: '{title}'")
         matched_title, recs = recommend(title, top_n=5)
+        logger.info(f"Recommendation successful for '{matched_title}'")
         return jsonify({"matched_title": matched_title, "recommendations": recs})
     except (ValueError, LookupError) as e:
+        logger.warning(f"Client error in recommendation: {e.__class__.__name__}: {e}")
         return jsonify({"error": str(e)}), 400
-    except Exception:
+    except Exception as e:
+        logger.error(f"Server error in recommendation: {e.__class__.__name__}: {e}", exc_info=True)
         return jsonify({"error": "Unexpected server error. Please try again."}), 500
 
 
