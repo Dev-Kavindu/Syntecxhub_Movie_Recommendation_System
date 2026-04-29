@@ -8,6 +8,7 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Flask](https://img.shields.io/badge/Flask-2.3+-green.svg)](https://flask.palletsprojects.com/)
 [![Scikit-Learn](https://img.shields.io/badge/Scikit--Learn-1.3+-orange.svg)](https://scikit-learn.org/)
+[![Live Deployment](https://img.shields.io/badge/Deployment-Railway-9900ff.svg)](https://syntecxhubmovierecommendationsystem-production.up.railway.app/)
 
 A sleek, ML-powered web application that suggests movies based on user interest using **Content-Based Filtering**. Built with a modern glassmorphism dashboard UI and integrated with the TMDB API for real-time movie posters and details.
 
@@ -86,7 +87,11 @@ graph LR
 
 ### Fallback Strategy
 
-If the precomputed similarity matrix is too large to load in memory (e.g., on low-resource deployments), the engine falls back to **on-the-fly similarity computation** using the same CountVectorizer pipeline.
+The application uses a **hybrid data loading approach** to avoid Git LFS and unpickling issues in production:
+
+- **Primary**: CSV-based data loading from `data/tmdb_5000_movies.csv` and `data/tmdb_5000_credits.csv`
+- **Fallback**: On-the-fly similarity computation using CountVectorizer when precomputed `.pkl` files are unavailable
+- **Benefits**: Eliminates large pickle file dependencies, reduces repository size, and improves deployment reliability
 
 ---
 
@@ -118,6 +123,7 @@ Movie_Recommendation_System/
 | Feature | Description |
 |---------|-------------|
 | **Dynamic UI** | Professional glassmorphism dashboard with fixed left sidebar and responsive movie card grids |
+| **Mobile-Responsive** | Fully responsive design that adapts seamlessly to mobile, tablet, and desktop screens |
 | **Real-Time Search** | Autocomplete suggestions powered by fuzzy matching against the full movie database |
 | **TMDB Integration** | Live poster images, ratings, and metadata fetched from The Movie Database API |
 | **Neon Sidebar** | CSS-only animated AI core with rotating rings and breathing glow effect |
@@ -191,21 +197,16 @@ The `app.py` is already configured for production with `host='0.0.0.0'` and `por
 
 ### Platform Deployments
 
-#### Render
-1. Connect your GitHub repository
-2. Set `TMDB_API_KEY` as an environment variable
-3. Deploy the `web_app/` directory
-4. Ensure model files are included or downloaded at build time
+#### Railway (Primary Deployment)
 
-#### Railway
+The application is currently deployed on Railway at:
+**[https://syntecxhubmovierecommendationsystem-production.up.railway.app/](https://syntecxhubmovierecommendationsystem-production.up.railway.app/)**
+
+**Deployment Steps:**
 1. Create a new project from your GitHub repo
 2. Add `TMDB_API_KEY` to environment variables
 3. Deploy with automatic builds
-
-#### Heroku
-1. Create a new Heroku app
-2. Set `TMDB_API_KEY` via Heroku CLI: `heroku config:set TMDB_API_KEY=your_key`
-3. Deploy using the Heroku Git remote
+4. Railway automatically handles the CSV data loading and ML pipeline initialization
 
 ---
 
@@ -225,7 +226,8 @@ The `app.py` is already configured for production with `host='0.0.0.0'` and `por
 ## 📊 Data Source
 
 - **TMDB API** — Real-time movie posters, ratings, and metadata
-- **Local Dataset** — Curated movie list with processed tags (exported via Jupyter notebook pipeline to `movie_list.pkl` and `similarity.pkl`)
+- **Local Dataset** — CSV files (`tmdb_5000_movies.csv` and `tmdb_5000_credits.csv`) containing movie metadata, credits, and processed tags
+- **Processed Models** — Precomputed similarity matrix (`.pkl`) for faster recommendations, with CSV fallback for production reliability
 
 ---
 
@@ -237,8 +239,8 @@ This project is licensed under the MIT License — see the [LICENSE](LICENSE) fi
 
 ## 👨‍💻 Developed by Kavindu Chamod
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com/in/kavinduchamod)
-[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/kavinduchamod)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/kavindu-chamod-ranaweera/)
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](https://github.com/Dev-Kavindu)
 
 ---
 
