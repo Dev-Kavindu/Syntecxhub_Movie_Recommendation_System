@@ -296,6 +296,49 @@ function wireUp() {
     });
   }
 
+  // Mobile menu toggle
+  const mobileMenuToggle = document.getElementById("mobileMenuToggle");
+  const sidebar = document.getElementById("sidebar");
+  const mobileOverlay = document.getElementById("mobileOverlay");
+  
+  if (mobileMenuToggle && sidebar && mobileOverlay) {
+    function toggleMenu() {
+      sidebar.classList.toggle("sidebar--open");
+      mobileOverlay.classList.toggle("mobile-overlay--active");
+      const icon = mobileMenuToggle.querySelector("i");
+      if (icon) {
+        icon.classList.toggle("fa-bars");
+        icon.classList.toggle("fa-times");
+      }
+    }
+
+    function closeMenu() {
+      sidebar.classList.remove("sidebar--open");
+      mobileOverlay.classList.remove("mobile-overlay--active");
+      const icon = mobileMenuToggle.querySelector("i");
+      if (icon) {
+        icon.classList.remove("fa-times");
+        icon.classList.add("fa-bars");
+      }
+    }
+
+    mobileMenuToggle.addEventListener("click", toggleMenu);
+    mobileOverlay.addEventListener("click", closeMenu);
+
+    // Close menu when clicking on a link inside sidebar
+    const sidebarLinks = sidebar.querySelectorAll("a");
+    sidebarLinks.forEach(link => {
+      link.addEventListener("click", closeMenu);
+    });
+
+    // Close menu on window resize if switching to desktop
+    window.addEventListener("resize", () => {
+      if (window.innerWidth > 768) {
+        closeMenu();
+      }
+    });
+  }
+
   // Elements
   const input = document.getElementById("movie-input");
   const box = document.getElementById("suggestions");

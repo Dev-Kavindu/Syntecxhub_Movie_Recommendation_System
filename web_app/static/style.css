@@ -736,21 +736,241 @@ body.light-mode .card__poster {
   font-size: 0.8rem;
 }
 
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+  display: none;
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(30, 41, 59, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #e5e7eb;
+  font-size: 1.2rem;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.mobile-menu-toggle:hover {
+  background: rgba(59, 130, 246, 0.9);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+body.light-mode .mobile-menu-toggle {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: rgba(0, 0, 0, 0.15);
+  color: #1f2937;
+}
+
+body.light-mode .mobile-menu-toggle:hover {
+  background: rgba(59, 130, 246, 0.9);
+  color: white;
+}
+
+/* Mobile Overlay */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 49;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+
+.mobile-overlay--active {
+  display: block;
+  opacity: 1;
+}
+
+/* Tablet and Mobile Styles */
 @media (max-width: 768px) {
-  .main-content { padding: 20px; }
-  .search-section { padding: 20px; }
-  .search { flex-direction: column; }
-  .btn { width: 100%; justify-content: center; }
+  .mobile-menu-toggle {
+    display: flex;
+  }
+
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 300ms ease;
+  }
+
+  .sidebar--open {
+    transform: translateX(0);
+  }
+
+  .main-content {
+    margin-left: 0;
+    padding: 20px;
+    padding-top: 70px;
+  }
+
+  .search-section {
+    padding: 20px;
+    margin-bottom: 24px;
+  }
+
+  .search-section h2 {
+    font-size: 1.15rem;
+  }
+
+  .search-section p {
+    font-size: 0.85rem;
+  }
+
+  .search {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .btn {
+    width: 100%;
+    justify-content: center;
+    padding: 14px 18px;
+  }
+
   .recommendations-grid {
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px;
+  }
+
+  .card {
+    padding: 12px;
+  }
+
+  .card__poster {
+    height: 180px;
+  }
+
+  .card__title {
+    font-size: 0.9rem;
+  }
+
+  .ai-core-container {
+    height: 150px;
+  }
+
+  .ai-core-icon {
+    font-size: 40px;
+  }
+
+  .core-ring {
+    width: 80px;
+    height: 80px;
+  }
+
+  .core-ring-outer {
+    width: 110px;
+    height: 110px;
   }
 }
 
+/* Mobile Styles */
 @media (max-width: 480px) {
-  .main-content { padding: 16px; }
-  .search-section { padding: 16px; }
-  .recommendations-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .card { padding: 10px; }
-  .card__poster { height: 120px; }
+  .main-content {
+    padding: 16px;
+    padding-top: 70px;
+  }
+
+  .search-section {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .search-section h2 {
+    font-size: 1.05rem;
+  }
+
+  .search-section p {
+    font-size: 0.8rem;
+  }
+
+  .search__input {
+    padding: 14px 16px;
+    font-size: 1rem;
+  }
+
+  .btn {
+    font-size: 0.95rem;
+    padding: 14px 18px;
+  }
+
+  .recommendations-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .card {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .card__poster {
+    height: 140px;
+    border-radius: 10px;
+  }
+
+  .card__title {
+    font-size: 0.85rem;
+  }
+
+  .card__badge {
+    font-size: 0.75rem;
+  }
+
+  .card__rating {
+    font-size: 0.8rem;
+  }
+
+  .rating-value {
+    font-size: 0.75rem;
+  }
+
+  .card__meta {
+    font-size: 0.75rem;
+  }
+
+  .sidebar {
+    width: 280px;
+  }
+
+  .sidebar-header h2 {
+    font-size: 1rem;
+  }
+
+  .sidebar-overview h3 {
+    font-size: 0.8rem;
+  }
+
+  .sidebar-overview p {
+    font-size: 0.78rem;
+  }
+
+  .ai-core-container {
+    height: 120px;
+    margin: 16px 0;
+  }
+
+  .ai-core-icon {
+    font-size: 35px;
+  }
+
+  .core-ring {
+    width: 70px;
+    height: 70px;
+  }
+
+  .core-ring-outer {
+    width: 95px;
+    height: 95px;
+  }
 }
