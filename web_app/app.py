@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import os
 import pickle
 from difflib import get_close_matches
@@ -11,12 +12,15 @@ import numpy as np
 import pandas as pd
 import requests
 from flask import Flask, jsonify, render_template, request
+from nltk.stem import PorterStemmer
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 APP_DIR = Path(__file__).resolve().parent
 MODELS_DIR = APP_DIR / "models"
-MOVIE_LIST_PATH = MODELS_DIR / "movie_list.pkl"
+DATA_DIR = APP_DIR.parent / "data"
+MOVIES_CSV_PATH = DATA_DIR / "tmdb_5000_movies.csv"
+CREDITS_CSV_PATH = DATA_DIR / "tmdb_5000_credits.csv"
 SIMILARITY_PATH = MODELS_DIR / "similarity.pkl"
 
 # Load .env so TMDB_API_KEY works even when running `python app.py`
@@ -36,6 +40,64 @@ TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p/w500"
 
 app = Flask(__name__)
 
+# Initialize stemmer for text preprocessing
+stemmer = PorterStemmer()
+
+
+def _convert(obj: str) -> list[str]:
+    """Convert a JSON-like string column into a list of names."""
+    try:
+        items = ast.literal_eval(obj)
+    except (ValueError, SyntaxError):
+        return []
+    
+    if not isinstance(items, list):
+        return []
+    
+    return [item.get('name', '') for item in items if isinstance(item, dict) and 'name' in item]
+
+
+def _convert3(obj: str) -> list[str]:
+    """Extract top 3 cast member names from the cast field."""
+    if isinstance(obj, str):
+        try:
+            items = ast.literal_eval(obj)
+        except (ValueError, SyntaxError):
+            return []
+    elif isinstance(obj, list):
+        items = obj
+    else:
+        return []
+
+    result = []
+    for i in items[:3]:
+        if isinstance(i, dict) and 'name' in i:
+            result.append(i['name'])
+        elif isinstance(i, str):
+            result.append(i)
+    return result
+
+
+def _fetch_director(obj: str) -> list[str]:
+    """Extract the director name from the crew field."""
+    try:
+        items = ast.literal_eval(obj)
+    except (ValueError, SyntaxError):
+        return []
+    
+    if not isinstance(items, list):
+        return []
+    
+    for i in items:
+        if isinstance(i, dict) and i.get('job') == 'Director':
+            return [i.get('name', '')]
+    return []
+
+
+def _stem(text: str) -> str:
+    """Apply stemming to text."""
+    return ' '.join([stemmer.stem(word) for word in text.split()])
+
 
 def _load_pickle(path: Path) -> Any:
     with path.open("rb") as f:
@@ -44,25 +106,66 @@ def _load_pickle(path: Path) -> Any:
 
 @lru_cache(maxsize=1)
 def get_movies() -> pd.DataFrame:
-    """Load the movie list from disk.
+    """Load and process movie data from CSV files.
 
-    The notebook exports this as: pickle.dump(new_df.to_dict(), ...)
-    which we reconstruct into a DataFrame here.
+    This replicates the notebook's preprocessing pipeline:
+    1. Load movies and credits CSV files
+    2. Merge on title
+    3. Parse JSON-like columns (genres, keywords, cast, crew)
+    4. Create combined tags column
+    5. Apply stemming
     """
 
-    if not MOVIE_LIST_PATH.exists():
+    if not MOVIES_CSV_PATH.exists():
         raise FileNotFoundError(
-            f"Missing {MOVIE_LIST_PATH.name} in {MODELS_DIR}. "
-            "Run the notebook export step to generate it."
+            f"Missing {MOVIES_CSV_PATH.name} in {DATA_DIR}. "
+            "Ensure the data directory contains the TMDB CSV files."
         )
 
-    movie_dict = _load_pickle(MOVIE_LIST_PATH)
-    movies_df = pd.DataFrame(movie_dict)
+    if not CREDITS_CSV_PATH.exists():
+        raise FileNotFoundError(
+            f"Missing {CREDITS_CSV_PATH.name} in {DATA_DIR}. "
+            "Ensure the data directory contains the TMDB CSV files."
+        )
 
-    if "title" not in movies_df.columns:
-        raise ValueError("movie_list.pkl must contain a 'title' column.")
+    # Load CSV files
+    movies = pd.read_csv(MOVIES_CSV_PATH)
+    credits = pd.read_csv(CREDITS_CSV_PATH)
 
-    return movies_df
+    # Merge credits into movies on title
+    movies = movies.merge(credits, on='title')
+
+    # Select relevant columns
+    movies = movies[['movie_id', 'title', 'overview', 'genres', 'keywords', 'cast', 'crew']]
+
+    # Drop rows with missing values
+    movies.dropna(inplace=True)
+
+    # Parse JSON-like columns
+    movies['genres'] = movies['genres'].apply(_convert)
+    movies['keywords'] = movies['keywords'].apply(_convert)
+    movies['cast'] = movies['cast'].apply(_convert3)
+    movies['crew'] = movies['crew'].apply(_fetch_director)
+
+    # Create tags by combining all text features
+    movies['tags'] = movies['overview'] + movies['genres'] + movies['keywords'] + movies['cast'] + movies['crew']
+
+    # Select only the columns needed for recommendations
+    new_df = movies[['movie_id', 'title', 'tags']]
+
+    # Join list elements into space-separated strings
+    new_df['tags'] = new_df['tags'].apply(lambda x: " ".join(x) if isinstance(x, list) else str(x))
+
+    # Convert to lowercase
+    new_df['tags'] = new_df['tags'].apply(lambda x: x.lower())
+
+    # Apply stemming
+    new_df['tags'] = new_df['tags'].apply(_stem)
+
+    if "title" not in new_df.columns:
+        raise ValueError("Processed data must contain a 'title' column.")
+
+    return new_df
 
 
 @lru_cache(maxsize=1)
@@ -98,7 +201,7 @@ def get_count_matrix():
     movies = get_movies()
     if "tags" not in movies.columns:
         raise ValueError(
-            "movie_list.pkl must include a 'tags' column to compute similarities on-the-fly."
+            "Processed movie data must include a 'tags' column to compute similarities on-the-fly."
         )
 
     cv = CountVectorizer(max_features=5000, stop_words="english")
