@@ -1,0 +1,40 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment variables
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Large model files (use Git LFS or external storage)
+# web_app/models/movie_list.pkl
+# web_app/models/similarity.pkl
+# *.pkl
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# zip files
+.zip

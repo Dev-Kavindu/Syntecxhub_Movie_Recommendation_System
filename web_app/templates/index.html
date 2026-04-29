@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MovieMind AI • Movie Recommender</title>
+  <meta name="theme-color" content="#0f172a" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <div class="sidebar-header">
+          <div class="logo">MM</div>
+          <h2>MovieMind AI</h2>
+        </div>
+        <div class="sidebar-overview">
+          <h3>Project Overview</h3>
+          <p>A Machine Learning powered movie recommendation engine using Content-Based Filtering and TMDB API.</p>
+        </div>
+      </div>
+      <div class="ai-core-container">
+        <div class="core-ring"></div>
+        <div class="core-ring-outer"></div>
+        <i class="fas fa-microchip ai-core-icon"></i>
+      </div>
+      <div class="sidebar-bottom">
+        <div class="sidebar__section">
+          <div class="sidebar__label">Appearance</div>
+          <label class="theme-switch" title="Toggle theme">
+            <input id="themeToggle" type="checkbox" role="switch" aria-label="Toggle dark mode" />
+            <span class="theme-switch__track" aria-hidden="true">
+              <span class="theme-switch__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+              </span>
+              <span class="theme-switch__thumb">
+                <span class="thumb-icon thumb-icon--sun">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                </span>
+                <span class="thumb-icon thumb-icon--moon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                </span>
+              </span>
+              <span class="theme-switch__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+              </span>
+            </span>
+          </label>
+        </div>
+        <footer class="sidebar-footer">
+          <div class="footer-separator"></div>
+          <div class="footer-content">
+            <div class="footer-avatar">KC</div>
+            <p class="footer-credit">Developed by Kavindu Chamod</p>
+          </div>
+        </footer>
+      </div>
+    </aside>
+    <main class="main-content">
+      <section class="search-section">
+        <h2>Find similar movies</h2>
+        <p>Start typing and pick a title from the suggestions for the best experience.</p>
+        <form id="recommendForm" class="search" autocomplete="off">
+          <div class="autocomplete">
+            <input
+              id="movie-input"
+              class="search__input"
+              type="text"
+              placeholder="Search a movie (e.g., Avatar)"
+              aria-label="Movie title"
+              aria-autocomplete="list"
+              aria-expanded="false"
+              aria-controls="suggestions"
+              required
+            />
+            <div id="suggestions" class="suggestions" role="listbox" aria-label="Movie suggestions"></div>
+          </div>
+          <button id="recommend-btn" class="btn btn--primary" type="submit">Recommend</button>
+        </form>
+        <div id="status" class="status" role="status" aria-live="polite"></div>
+      </section>
+      <section id="recommendations-grid" class="recommendations-grid">
+        <!-- Movie cards will appear here -->
+      </section>
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
