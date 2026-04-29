@@ -147,7 +147,16 @@ def get_movies() -> pd.DataFrame:
     movies['cast'] = movies['cast'].apply(_convert3)
     movies['crew'] = movies['crew'].apply(_fetch_director)
 
-    # Create tags by combining all text features
+    # Convert overview to list (split by spaces) for concatenation
+    movies['overview'] = movies['overview'].apply(lambda x: str(x).split() if pd.notna(x) else [])
+
+    # Ensure all columns are lists and handle NaN values
+    movies['genres'] = movies['genres'].apply(lambda x: x if isinstance(x, list) else [])
+    movies['keywords'] = movies['keywords'].apply(lambda x: x if isinstance(x, list) else [])
+    movies['cast'] = movies['cast'].apply(lambda x: x if isinstance(x, list) else [])
+    movies['crew'] = movies['crew'].apply(lambda x: x if isinstance(x, list) else [])
+
+    # Create tags by combining all text features (all are now lists)
     movies['tags'] = movies['overview'] + movies['genres'] + movies['keywords'] + movies['cast'] + movies['crew']
 
     # Select only the columns needed for recommendations
